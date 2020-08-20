@@ -5,6 +5,7 @@ metadata:
 spec:
   slotsPerWorker: 1
   cleanPodPolicy: Running
+  mpiDistribution: IntelMPI
   mpiReplicaSpecs:
     Launcher:
       replicas: 1
@@ -37,15 +38,26 @@ spec:
              - python
              - scripts/tf_cnn_benchmarks/tf_cnn_benchmarks.py
              - --model=resnet101
+             - --device=cpu
+             - --data_format=NHWC
              - --batch_size=64
-             - --variable_update=horovod
+             - --horovod_device=cpu
     Worker:
       replicas: 2
       template:
         spec:
+          affinity:
+            podAntiAffinity:
+              requiredDuringSchedulingIgnoredDuringExecution:
+              - labelSelector:
+                  matchExpressions:
+                  - key: mpi_role_type
+                    operator: In
+                    values:
+                    - worker
+                topologyKey: "kubernetes.io/hostname"
+          nodeSelector:
+            venkymonkey: "true"
           containers:
           - image: mpioperator/tensorflow-benchmarks:latest
             name: tensorflow-benchmarks
-            resources:
-              limits:
-                nvidia.com/gpu: 1
